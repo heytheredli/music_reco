@@ -8,7 +8,7 @@ members = fread("members.csv")
 songs = fread("songs.csv")
 song_extra_info = fread("song_extra_info.csv")
 train_data = fread("train.csv")
-test_data = fread("test.csv")
+#test_data = fread("test.csv")
 
 setkey(songs, song_id)
 setkey(members, msno)
@@ -28,48 +28,64 @@ train_data = merge(train_data, members, all.x=TRUE)
 
 temp = head(train_data, n=1000)
 
-temp[,msno:=NULL]
-temp[,song_id:=NULL]
+train_data[,msno:=NULL]
+train_data[,song_id:=NULL]
 
-target = temp$target
-temp[,target:=NULL]
+target = train_data$target
+train_data[,target:=NULL]
 
 # splitting registration date into year, month, and day
-temp$registration_init_year = floor(temp$registration_init_time/10000)
-temp$registration_init_month = floor((temp$registration_init_time - temp$registration_init_year * 10000)/100)
-temp$registration_init_day = temp$registration_init_time - (temp$registration_init_year*10000 + temp$registration_init_month * 100)
-temp[,registration_init_time:=NULL]
+train_data$registration_init_year = floor(train_data$registration_init_time/10000)
+train_data$registration_init_month = floor((train_data$registration_init_time - train_data$registration_init_year * 10000)/100)
+train_data$registration_init_day = train_data$registration_init_time - (train_data$registration_init_year*10000 + train_data$registration_init_month * 100)
+train_data[,registration_init_time:=NULL]
 
 # splitting expiration date into year, month, and day
-temp$expiration_year = floor(temp$expiration_date/10000)
-temp$expiration_month = floor((temp$expiration_date - temp$expiration_year * 10000)/100)
-temp$expiration_day = temp$expiration_date - (temp$expiration_year*10000 + temp$expiration_month * 100)
-temp[,expiration_date:=NULL]
+train_data$expiration_year = floor(train_data$expiration_date/10000)
+train_data$expiration_month = floor((train_data$expiration_date - train_data$expiration_year * 10000)/100)
+train_data$expiration_day = train_data$expiration_date - (train_data$expiration_year*10000 + train_data$expiration_month * 100)
+train_data[,expiration_date:=NULL]
 
 # if artist name only has alphanumeric, artist_name_eng = 1, else 0
-temp[,artist_name_eng := ifelse(grepl('^[A-Za-z0-9]+$', temp$artist_name), 1, 0)]
-sum(temp$artist_name_eng)
+train_data[,artist_name_eng := ifelse(grepl('^[A-Za-z0-9]+$', train_data$artist_name), 1, 0)]
+sum(train_data$artist_name_eng)
+train_data[,artist_name:=NULL]
 
 # if composer only has alphanumeric, composer_eng = 1, else 0
-temp[,composer_eng := ifelse(grepl('^[A-Za-z0-9]+$', temp$composer), 1, 0)]
-sum(temp$composer_eng)
+train_data[,composer_eng := ifelse(grepl('^[A-Za-z0-9]+$', train_data$composer), 1, 0)]
+sum(train_data$composer_eng)
+train_data[,composer:=NULL]
 
 # if lyricist only has alphanumeric, lyricist_eng = 1, else 0
-temp[,lyricist_eng := ifelse(grepl('^[A-Za-z0-9]+$', temp$lyricist), 1, 0)]
-sum(temp$lyricist_eng)
+train_data[,lyricist_eng := ifelse(grepl('^[A-Za-z0-9]+$', train_data$lyricist), 1, 0)]
+sum(train_data$lyricist_eng)
+train_data[,lyricist:=NULL]
+train_data[,name:=NULL]
 
 # if song name only has alphanumeric, name_eng = 1, else 0
-temp[,name_eng := ifelse(grepl('^[A-Za-z0-9]+$', temp$name), 1, 0)]
-sum(temp$name_eng)
+train_data[,name_eng := ifelse(grepl('^[A-Za-z0-9]+$', train_data$name), 1, 0)]
+sum(train_data$name_eng)
+train_data[,isrc:=NULL]
 
-temp[,artist_name:=NULL]
-temp[,composer:=NULL]
-temp[,lyricist:=NULL]
-temp[,name:=NULL]
-temp[,isrc:=NULL]
+# Genre Ids
+train_data[,genre_ids:=NULL]
+
+sparse_matrix = sparse.model.matrix(target~., data=train_data)
+bst <- xgboost(data = sparse_matrix, label = target, max_depth = 9,
+               eta = 1, nthread = 2, nrounds = 10, objective = "binary:logistic")
+importance <- xgb.importance(feature_names = colnames(sparse_matrix), model = bst)
+print(importance)
+
+
+
+head(temp$genre_ids)
+colnames(temp)
+str(temp)
+unique(train_data[,source_type])
+
 
 #tbd
-genre_ids
+#genre_ids - nulled
 #artist_name
 #composer
 #lyricist
@@ -77,21 +93,17 @@ genre_ids
 #isrc - nulled
 
 #good to be one-hot encoded:
-source_system_tab
-source_screen_name
-source_type
-gender
+#source_system_tab
+#source_screen_name
+#source_type
+#gender
 
 #leave as int:
-song_length
-language
-city
-bd
-registered_via
+#song_length
+#language
+#city
+#bd
+#registered_via
 
-head(train_data)
-colnames(temp)
-str(temp)
-unique(train_data[,registered_via])
 
 
